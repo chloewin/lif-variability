@@ -12,10 +12,10 @@ from tqdm import tqdm
 
 dt = 0.5
 time_duration = 3000
-trigger_duration = 100
+trigger_duration = 30
 k = 3
 n = 500
-k_clusters = 1
+k_clusters = 2
 
 ntrigger = int(trigger_duration / dt)
 
@@ -29,6 +29,8 @@ for i in tqdm(range(n)):
     lif = uta.gen_neuron(dt = dt)
     lifs.append(lif)
     r = uta.stim_neuron(neuron=lif, time_duration=time_duration)
+    if (sum(r.spikes[ntrigger:]) == 0):
+        r.spikes[ntrigger:] = np.ones(len(r.spikes) - ntrigger)
     responses.append(r)
     if i in representative:
         utp.visaulize_response(r)
@@ -39,14 +41,12 @@ for i in tqdm(range(n)):
         skipped += 1
         continue
 
-pca = uta.compute_pcs(k, responses, trigger_duration)
+pca, stas = uta.compute_pcs(k, responses, trigger_duration)
 
 projections = np.zeros((n, k))
 num_spikes = []
 for i in tqdm(range(n)):
     r = responses[i]
-    if (sum(r.spikes[ntrigger:]) == 0):
-        r.spikes[ntrigger:] = np.ones(len(r.spikes) - ntrigger)
     projections[i,:] = uta.project_sta(r, pca, trigger_duration)
     num_spikes.append(sum(r.spikes))
 
@@ -54,6 +54,14 @@ projections = projections / projections.max()
 clusters = uta.cluster(projections, k_clusters)
 utp.plot_clusters3d(projections, clusters)
 plt.savefig("./../images/3d-clusters.jpg")
+plt.close()
+
+time = np.arange(0, trigger_duration + dt, dt)
+plt.plot(time, np.mean(stas[clusters == 0, :], axis=0), label='C1')
+plt.plot(time, np.mean(stas[clusters == 1, :], axis=0), label='C2')
+plt.ylabel('spikes')
+plt.xlabel('time (ms)')
+plt.savefig("./../images/stas.jpg")
 plt.close()
 
 utp.plot_clusters2d(projections, clusters)

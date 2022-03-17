@@ -32,11 +32,11 @@ def gen_neuron(dt: float)->LIF:
     return LIF(
         LIFParams(
             dt=dt,
-            # c_m = random.uniform(10, 500),
-            # g_l=random.uniform(1, 100),
-            # v_l = random.uniform(-100, -75),
-            # v_th = random.uniform(-100, 20),
-            k_j = np.random.uniform(1e-9, 100, 2),
+            c_m = random.uniform(50, 500),
+            g_l=random.uniform(1, 20),
+            v_l = random.uniform(-100, -75),
+            v_th = random.uniform(-75, 20),
+            k_j = np.random.uniform(1e-9, 1, 2),
             f_j = np.random.uniform(-200, 200, 2),
             b_j = np.random.uniform(-1, 1, 2)
         )
@@ -108,17 +108,21 @@ def compute_pcs(k: int, responses: List[Response], trigger_duration: float):
 
     Returns:
     a fit PCA object from sklearn
+    and the list of STAs
     """
     # Compute STs
     sts = []
     for response in responses:
-        sts.extend(compute_sts(response, trigger_duration))
+        sts_r = compute_sts(response, trigger_duration)
+        sts_array = np.stack([r.stimulus for r in sts_r])
+        sts.append(np.mean(sts_array, axis=0))
+        # sts.extend(np.mean(compute_sts(response, trigger_duration), axis=0))
     
     # Compute pca
     pca = PCA(n_components=k)
-    sts_array = np.array([r.stimulus for r in sts])
-    pca.fit(sts_array)
-    return pca
+    # sts_array = np.array([r.stimulus for r in sts])
+    pca.fit(np.stack(sts).reshape((len(responses), -1)))
+    return pca, np.stack(sts)
 
 def project_sta(response: Response, pca: PCA, trigger_duration: float):
     """
